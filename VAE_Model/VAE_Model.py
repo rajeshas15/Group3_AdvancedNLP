@@ -370,9 +370,27 @@ if __name__ == "__main__":
     
     # Calculate perplexity
     print("Calculating perplexity...")
-    perplexity = calculate_perplexity(trained_model, dataloader, word2idx)
-    print(f"Perplexity: {perplexity:.2f}")
-    print()
+    # Negative Log Likelihood (approx.)
+    with torch.no_grad():
+        total_loss = 0
+        total_tokens = 0
+
+        for batch in dataloader:
+            output, mu, logvar = trained_model(batch, batch)
+
+            loss = nn.CrossEntropyLoss(ignore_index=0, reduction='sum')(
+                output.view(-1, vocab_size), batch.view(-1))
+            total_loss += loss.item()
+
+            total_tokens += (batch != word2idx["<pad>"]).sum().item() # number of non-padding tokens
+
+        nll = total_loss / total_tokens
+        ppl = torch.exp(torch.tensor(nll))
+
+        print(f"Negative Log Likelihood (NLL): {nll:.4f}") #average negative log-likelihood
+        print(f"Perplexity (PPL): {ppl:.2f}")
+        
+
     
     # Generate text
     print("Generated headlines:")
